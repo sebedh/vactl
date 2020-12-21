@@ -6,12 +6,14 @@ import (
 	vault "github.com/hashicorp/vault/api"
 )
 
-var (
-	vaultAddr  = "http://127.0.0.1:8200"
-	vaultToken = "s.4ZSrKgLPuAqhZui4SxPVRfuy"
-)
+type Client struct {
+	vaultAddr   string
+	vaultToken  string
+	vaultClient *vault.Client
+}
 
-func main() {
+func NewVaultClient(vaultAddr string, vaultToken string) (*Client, error) {
+
 	config := &vault.Config{Address: vaultAddr}
 	client, err := vault.NewClient(config)
 	if err != nil {
@@ -22,4 +24,7 @@ func main() {
 	if err != nil {
 		log.Printf("Error on setting token: %v", err)
 	}
+
+	return &Client{vaultAddr: vaultAddr, vaultToken: vaultToken, vaultClient: client}, err
+
 }
