@@ -9,7 +9,7 @@ import (
 type Client struct {
 	vaultAddr   string
 	vaultToken  string
-	vaultClient *vault.Client
+	VaultClient *vault.Client
 }
 
 func NewVaultClient(vaultAddr string, vaultToken string) (*Client, error) {
@@ -25,6 +25,10 @@ func NewVaultClient(vaultAddr string, vaultToken string) (*Client, error) {
 		log.Printf("Error on setting token: %v", err)
 	}
 
-	return &Client{vaultAddr: vaultAddr, vaultToken: vaultToken, vaultClient: client}, err
+	return &Client{
+			vaultAddr:   vaultAddr,
+			vaultToken:  vaultToken,
+			VaultClient: client},
+		err
 
 }
