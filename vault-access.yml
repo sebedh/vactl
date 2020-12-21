@@ -1,0 +1,10 @@
+---
+users:
+  - name: sebbe
+    method: userpass
+    policies:
+      - test-policy
+  - name: somerandom
+    method: userpass
+    policies:
+      - merrandom
