@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,81 +17,71 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/sebedh/vactl/internal"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // policiesCmd represents the policies command
 var policiesCmd = &cobra.Command{
 	Use:   "policies",
 	Short: "Vault policies",
-	Long:  `Use this to get and apply policies from Vault`,
+	Long:  `Represent policies in Vault`,
 	Run: func(cmd *cobra.Command, args []string) {
-		vaultToken := viper.GetString("vaultToken")
-		vaultAddr := viper.GetString("vaultAddr")
-
-		c, err := internal.NewVaultClient(vaultAddr, vaultToken)
-		if err != nil {
-			log.Printf("Could not create client needed: %v", err)
-		}
-		policies, err := getVaultPolicies(c)
-		if err != nil {
-			log.Printf("Command failed at getting policies: %v", err)
-		}
-		fmt.Println(policies)
+		localPolicies := getLocalPolicies(FileApply)
+		fmt.Println(*localPolicies)
 	},
 }
 
-func getVaultPolicies(c *internal.Client) ([]internal.Policy, error) {
-
-	var policies []internal.Policy
-
-	policyList, err := c.VaultClient.Sys().ListPolicies()
+func getLocalPolicies(path string) *[]internal.Policy {
+	var localPolicies []internal.Policy
+	f, err := os.Stat(path)
 	if err != nil {
-		return nil,
-			fmt.Errorf("Could not get list of policies from Vault: %v", err)
+		fmt.Printf("Could not determine path as file or directory: %v", err)
+		os.Exit(1)
 	}
-	for _, p := range policyList {
-		policy, err := internal.NewPolicy(p)
-		if err != nil {
-			return nil, fmt.Errorf("Could not append policy to policy list: %v", err)
-		}
-		if (policy.Name == "root") || (policy.Name == "default") {
-			continue
-		}
-		policies = append(policies, *policy)
-	}
-	return policies, nil
-}
 
-func outputPolicyToFiles(p []internal.Policy, path string, c *internal.Client) error {
-	for _, p := range p {
-		fileName := path + p.Name + ".hcl"
-		f, err := os.Create(fileName)
-		if err != nil {
-			return fmt.Errorf("Could not write file: %v\nERROR: %v", fileName, err)
-		}
-		defer f.Close()
+	// determine if path is file or dir
+	// we if not dir we should always target one file
+	if f.IsDir() {
+		err = filepath.Walk(path, func(p string, info os.FileInfo, errr error) error {
+			policyName := filepath.Base(strings.TrimSpace(strings.TrimSuffix(p, ".hcl")))
 
-		// Get the data
-		data, err := c.VaultClient.Sys().GetPolicy(p.Name)
+			policy, err := internal.NewPolicy(strings.ToLower(policyName))
+			if err != nil {
+				fmt.Printf("Could not create policy object in code: %v", err)
+				return err
+			}
+			localPolicies = append(localPolicies, *policy)
+			return nil
+		})
+
 		if err != nil {
-			return fmt.Errorf("Could not retrieve policy for output %v\nERROR: %v", p.Name, err)
+			fmt.Printf("Could not examine directory: %v", err)
+			os.Exit(1)
 		}
 
-		if _, err := f.WriteString(data); err != nil {
-			return fmt.Errorf("Could not write to file: %v", err)
+		// We don't want root dir name as a policy
+		localPolicies = localPolicies[1:]
+	} else {
+		fileName := filepath.Base(strings.TrimSuffix(path, ".hcl"))
+		policy, err := internal.NewPolicy(strings.ToLower(strings.ToLower(fileName)))
+		if err != nil {
+			fmt.Printf("Could not make policy object from path: %v", err)
+			os.Exit(1)
 		}
+		localPolicies = append(localPolicies, *policy)
 	}
-	return nil
+
+	return &localPolicies
 }
 
 func init() {
 	getCmd.AddCommand(policiesCmd)
+	applyCmd.AddCommand(policiesCmd)
 
 	// Here you will define your flags and configuration settings.
 
@@ -102,5 +92,4 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// policiesCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	policiesCmd.Flags().BoolP("out", "o", false, "output to hcl format in ./policies")
 }

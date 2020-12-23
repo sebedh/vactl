@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,6 +26,8 @@ var getCmd = &cobra.Command{
 	Long:  `Get a Vault resource to stdout or yaml`,
 }
 
+var Out bool
+
 func init() {
 	rootCmd.AddCommand(getCmd)
 
@@ -34,6 +36,7 @@ func init() {
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
 	// getCmd.PersistentFlags().String("foo", "", "A help for foo")
+	getCmd.PersistentFlags().BoolVarP(&Out, "out", "o", false, "output to hcl format in ./policies")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.: getCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle") }
