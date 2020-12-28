@@ -1,10 +1,11 @@
 ---
+type: users
 users:
   - name: sebbe
     method: userpass
-    policies:
+    token_policies:
       - test-policy
   - name: somerandom
     method: userpass
-    policies:
+    token_policies:
       - merrandom

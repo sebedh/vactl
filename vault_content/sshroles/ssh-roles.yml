@@ -1,4 +1,6 @@
 ---
+type: ssh
+path: ssh
 sshroles:
   - name: otp_key_role
     key_type: otp

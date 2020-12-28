@@ -15,7 +15,9 @@ limitations under the License.
 */
 package main
 
-import "github.com/sebedh/vactl/cmd"
+import (
+	"github.com/sebedh/vactl/cmd"
+)
 
 func main() {
 	cmd.Execute()

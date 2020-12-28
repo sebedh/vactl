@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -36,26 +35,44 @@ var applyCmd = &cobra.Command{
 	Use:       "apply",
 	Short:     "Used to apply policies, users and roles",
 	Long:      `Used to apply policies, users and roles. Use with -f to apply files or folders`,
-	ValidArgs: []string{"policies", "ssh-roles", "userse"},
-	Run: func(cmd *cobra.Command, args []string) {
-		if len(FileApply) == 0 {
-			fmt.Println("error: must specify -f <dir|file>")
-			os.Exit(0)
+	ValidArgs: []string{"policies", "ssh-roles", "users"},
+	Run:       applyRun,
+}
+
+func applyRun(cmd *cobra.Command, args []string) {
+	var run_args string
+	if len(FileApply) == 0 {
+		fmt.Println("error: must specify -f <dir|file>")
+		os.Exit(0)
+	}
+
+	if len(args[0]) > 0 {
+		run_args = strings.ToLower(args[0])
+	}
+
+	if run_args == "policies" || run_args == "policy" {
+		policiesToCommit, dir, err := internal.GetLocalPolicies(FileApply)
+
+		if err != nil {
+			fmt.Printf("Could not get local policies: %v", err)
 		}
 
-		if args[0] == "policies" {
-			policiesToCommit, dir, err := getLocalPolicies(FileApply)
-
-			if err != nil {
-				fmt.Printf("Could not get local policies: %v", err)
-			}
-
-			if err := applyToVault(policiesToCommit, dir); err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
+		if err := applyToVault(policiesToCommit, dir); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
 		}
-	},
+	} else if run_args == "user" || run_args == "users" {
+		usersToCommit, dir, err := internal.GetLocalUsers(FileApply)
+
+		if err != nil {
+			fmt.Printf("Could not get local users yaml: %v", err)
+		}
+
+		if err := applyToVault(usersToCommit, dir); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	}
 }
 
 func applyToVault(o interface{}, dir string) error {
@@ -65,7 +82,7 @@ func applyToVault(o interface{}, dir string) error {
 		return fmt.Errorf("Could not determine vaultAddress, please specify vaultAddr: in conf")
 	}
 	if len(vaultToken) <= 0 {
-		return fmt.Errorf("You did not specify a Token in config")
+		return fmt.Errorf("You did not specify a Token in config, please specify vaultToken in conf")
 	}
 
 	// Create a client
@@ -80,78 +97,43 @@ func applyToVault(o interface{}, dir string) error {
 
 	// It's a policy
 	if t == reflect.TypeOf([]internal.Policy{}) {
-		s := reflect.ValueOf(o)
-		var reader io.Reader
-		var buf bytes.Buffer
-
-		for i := 0; i < s.Len(); i++ {
-			policyName := s.Index(i).FieldByName("Name").String()
-			path := dir + policyName + ".hcl"
-			file, err := os.Open(path)
-			if err != nil {
-				return fmt.Errorf("Could not open/find policy to install: %v", err)
-			}
-
-			defer file.Close()
-
-			reader = file
-			if _, err := io.Copy(&buf, reader); err != nil {
-				return fmt.Errorf("Could not reat policy in buffer: %v", err)
-			}
-
-			policyName = strings.TrimSpace(strings.ToLower(policyName))
-			fileBuf := buf.String()
-
-			if err := c.VaultClient.Sys().PutPolicy(policyName, fileBuf); err != nil {
-				fmt.Printf("Could not apply the policy to Vault: %v", err)
-			}
-			fmt.Printf("Applied Policy to Vault: %v", dir+policyName)
+		err := applyPolicy(c, o, dir)
+		if err != nil {
+			return fmt.Errorf("Could not apply Policy: %v", err)
 		}
 	}
 	return nil
 }
 
-func getLocalPolicies(path string) (localPolicies []internal.Policy, dir string, err error) {
-	f, err := os.Stat(path)
-	if err != nil {
-		fmt.Printf("Could not determine path as file or directory: %v", err)
-		os.Exit(1)
-	}
-	dir, path = filepath.Split(path)
+func applyPolicy(c *internal.Client, o interface{}, dir string) error {
+	s := reflect.ValueOf(o)
+	var reader io.Reader
+	var buf bytes.Buffer
 
-	// determine if path is file or dir
-	// we if not dir we should always target one file
-	if f.IsDir() {
-		err = filepath.Walk(dir, func(p string, info os.FileInfo, errr error) error {
-			policyName := filepath.Base(strings.TrimSpace(strings.TrimSuffix(p, ".hcl")))
-
-			policy, err := internal.NewPolicy(strings.ToLower(policyName))
-			if err != nil {
-				fmt.Printf("Could not create policy object in code: %v", err)
-				return err
-			}
-			localPolicies = append(localPolicies, *policy)
-			return nil
-		})
-
+	for i := 0; i < s.Len(); i++ {
+		policyName := s.Index(i).FieldByName("Name").String()
+		path := dir + policyName + ".hcl"
+		file, err := os.Open(path)
 		if err != nil {
-			fmt.Printf("Could not examine directory: %v", err)
-			os.Exit(1)
+			return fmt.Errorf("Could not open/find policy to install: %v", err)
 		}
 
-		// We don't want root dir name as a policy
-		localPolicies = localPolicies[1:]
-	} else {
-		fileName := filepath.Base(strings.TrimSuffix(path, ".hcl"))
-		policy, err := internal.NewPolicy(strings.ToLower(strings.ToLower(fileName)))
-		if err != nil {
-			fmt.Printf("Could not make policy object from path: %v", err)
-			os.Exit(1)
-		}
-		localPolicies = append(localPolicies, *policy)
-	}
+		defer file.Close()
 
-	return localPolicies, dir, nil
+		reader = file
+		if _, err := io.Copy(&buf, reader); err != nil {
+			return fmt.Errorf("Could not reat policy in buffer: %v", err)
+		}
+
+		policyName = strings.TrimSpace(strings.ToLower(policyName))
+		fileBuf := buf.String()
+
+		if err := c.VaultClient.Sys().PutPolicy(policyName, fileBuf); err != nil {
+			fmt.Printf("Could not apply the policy to Vault: %v", err)
+		}
+		fmt.Printf("Applied Policy to Vault: %v", dir+policyName)
+	}
+	return nil
 }
 
 func init() {
