@@ -48,17 +48,21 @@ func GetLocalFile(path string) (dir string, err error) {
 
 	// dir, file
 	dir, _ = filepath.Split(path)
+	fmt.Println("test")
 
 	if f.IsDir() {
 		err = filepath.Walk(dir, func(p string, info os.FileInfo, errr error) error {
+			content := make(map[interface{}]interface{})
 			fileBytes, err := ioutil.ReadFile(p)
 			if err != nil {
 				return fmt.Errorf("Could not open file: %v", err)
 			}
 
-			if err = yaml.Unmarshal(fileBytes, make(map[interface{}]interface{})); err != nil {
+			if err = yaml.Unmarshal(fileBytes, content); err != nil {
 				return fmt.Errorf("Could not unmarshal, %v", err)
 			}
+
+			fmt.Println(content)
 			// Determine if user or ssh-role
 			return nil
 		})

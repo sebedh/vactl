@@ -19,13 +19,16 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 
 	"github.com/sebedh/vactl/internal"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v2"
 )
 
 var FileApply string
@@ -40,39 +43,83 @@ var applyCmd = &cobra.Command{
 }
 
 func applyRun(cmd *cobra.Command, args []string) {
-	var run_args string
+	//var run_args string
 	if len(FileApply) == 0 {
 		fmt.Println("error: must specify -f <dir|file>")
 		os.Exit(0)
 	}
-
-	if len(args[0]) > 0 {
-		run_args = strings.ToLower(args[0])
+	f, err := os.Stat(FileApply)
+	if err != nil {
+		fmt.Printf("Could not stat dir or file: %v", err)
+		os.Exit(1)
 	}
 
-	if run_args == "policies" || run_args == "policy" {
-		policiesToCommit, dir, err := internal.GetLocalPolicies(FileApply)
+	dir, _ := filepath.Split(FileApply)
+
+	if f.IsDir() {
+		err = filepath.Walk(dir, func(p string, info os.FileInfo, errr error) error {
+			content := make(map[interface{}]interface{})
+			extension := strings.ToLower(filepath.Ext(p))
+
+			if extension == ".yml" || extension == ".yaml" {
+				bytes, err := ioutil.ReadFile(p)
+				if errr != nil {
+					return fmt.Errorf("Could not open file: %v", err)
+				}
+
+				if errr := yaml.Unmarshal(bytes, content); err != nil {
+					return fmt.Errorf("Could not unmarshal file: %v", errr)
+				}
+
+				yamlType := strings.ToLower(content["type"].(string))
+
+				if yamlType == "users" {
+					fmt.Println(content)
+				} else if yamlType == "sshrole" {
+					fmt.Println("sshrole")
+				}
+			} else if extension == ".hcl" {
+				policiesToCommit, dir, err := internal.GetLocalPolicies(FileApply)
+				if err != nil {
+					fmt.Printf("Couild not get local Policies: %v", err)
+				}
+				if err := applyToVault(policiesToCommit, dir); err != nil {
+					fmt.Printf("Could not apply policies: %v", err)
+				}
+			}
+			return nil
+		})
 
 		if err != nil {
-			fmt.Printf("Could not get local policies: %v", err)
-		}
-
-		if err := applyToVault(policiesToCommit, dir); err != nil {
 			fmt.Println(err)
-			os.Exit(1)
-		}
-	} else if run_args == "user" || run_args == "users" {
-		usersToCommit, dir, err := internal.GetLocalUsers(FileApply)
-
-		if err != nil {
-			fmt.Printf("Could not get local users yaml: %v", err)
-		}
-
-		if err := applyToVault(usersToCommit, dir); err != nil {
-			fmt.Println(err)
-			os.Exit(1)
 		}
 	}
+
+	//extension := filepath.Ext(FileApply)
+
+	// if run_args == "policies" || run_args == "policy" {
+	// 	policiesToCommit, dir, err := internal.GetLocalPolicies(FileApply)
+
+	// 	if err != nil {
+	// 		fmt.Printf("Could not get local policies: %v", err)
+	// 	}
+
+	// 	if err := applyToVault(policiesToCommit, dir); err != nil {
+	// 		fmt.Println(err)
+	// 		os.Exit(1)
+	// 	}
+	// } else if run_args == "user" || run_args == "users" {
+	// 	usersToCommit, dir, err := internal.GetLocalUsers(FileApply)
+
+	// 	if err != nil {
+	// 		fmt.Printf("Could not get local users yaml: %v", err)
+	// 	}
+
+	// 	if err := applyToVault(usersToCommit, dir); err != nil {
+	// 		fmt.Println(err)
+	// 		os.Exit(1)
+	// 	}
+	// }
 }
 
 func applyToVault(o interface{}, dir string) error {
