@@ -14,9 +14,7 @@ limitations under the License.
 package cmd
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -25,7 +23,6 @@ import (
 	"github.com/sebedh/vactl/internal"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"gopkg.in/yaml.v2"
 )
 
 var FileApply string
@@ -99,11 +96,11 @@ func applyToVault(files []string) error {
 		}
 
 		if extension == ".hcl" {
-			if err = applyPolicyPath(c, f); err != nil {
+			if err = c.ApplyPolicyPath(f); err != nil {
 				return err
 			}
 		} else {
-			if err = applyDataPath(c, &b, f); err != nil {
+			if err = c.ApplyDataPath(&b, f); err != nil {
 				return err
 			}
 		}
@@ -112,64 +109,69 @@ func applyToVault(files []string) error {
 	return nil
 }
 
-func applyPolicyPath(c *internal.Client, path string) error {
-	var reader io.Reader
-	var buf bytes.Buffer
-	_, fName := filepath.Split(path)
+// func applyPolicyPath(c *internal.Client, path string) error {
+// 	var reader io.Reader
+// 	var buf bytes.Buffer
+// 	_, fName := filepath.Split(path)
+//
+// 	policyName := strings.TrimSuffix(fName, ".hcl")
+//
+// 	file, err := os.Open(path)
+// 	if err != nil {
+// 		return fmt.Errorf("Could not open/find policy to install: %v", err)
+// 	}
+//
+// 	defer file.Close()
+//
+// 	reader = file
+// 	if _, err := io.Copy(&buf, reader); err != nil {
+// 		return fmt.Errorf("Could not read policy in buffer: %v", err)
+// 	}
+//
+// 	policyName = strings.TrimSpace(strings.ToLower(policyName))
+// 	fileBuf := buf.String()
+//
+// 	if err := c.VaultClient.Sys().PutPolicy(policyName, fileBuf); err != nil {
+// 		fmt.Printf("Could not apply the policy to Vault: %v", err)
+// 	}
+//
+// 	fmt.Printf("Applied Policy to Vault: %v, Location: %v\n", policyName, path)
+//
+// 	return nil
+// }
 
-	policyName := strings.TrimSuffix(fName, ".hcl")
-
-	file, err := os.Open(path)
-	if err != nil {
-		return fmt.Errorf("Could not open/find policy to install: %v", err)
-	}
-
-	defer file.Close()
-
-	reader = file
-	if _, err := io.Copy(&buf, reader); err != nil {
-		return fmt.Errorf("Could not read policy in buffer: %v", err)
-	}
-
-	policyName = strings.TrimSpace(strings.ToLower(policyName))
-	fileBuf := buf.String()
-
-	if err := c.VaultClient.Sys().PutPolicy(policyName, fileBuf); err != nil {
-		fmt.Printf("Could not apply the policy to Vault: %v", err)
-	}
-
-	fmt.Printf("Applied Policy to Vault: %v, Location: %v\n", policyName, path)
-
-	return nil
-}
-
-func applyDataPath(c *internal.Client, b *[]byte, f string) error {
-	content := make(map[interface{}]interface{})
-	fmt.Printf("Should apply yaml: %v\n", f)
-
-	if err := yaml.Unmarshal(*b, content); err != nil {
-		return fmt.Errorf("Could not unmarshal: %v\n", err)
-	}
-
-	if content["type"] == "users" {
-		uc := internal.UserContainer{}
-		if err := uc.ImportYaml(*b); err != nil {
-			return fmt.Errorf("Panic: %v\n", err)
-		}
-		for _, u := range uc.UserContainer {
-			if err := u.ApplyToVault(c); err != nil {
-				return fmt.Errorf("Could not apply to Vault: %v\n", err)
-			}
-		}
-
-	} else if content["type"] == "sshrole" {
-		pc := internal.SshRoleContainer{}
-		if err := pc.ImportYaml(*b); err != nil {
-			return fmt.Errorf("Panic: %v\n", err)
-		}
-	}
-	return nil
-}
+// func applyDataPath(c *internal.Client, b *[]byte, f string) error {
+// 	content := make(map[interface{}]interface{})
+// 	fmt.Printf("Should apply yaml: %v\n", f)
+//
+// 	if err := yaml.Unmarshal(*b, content); err != nil {
+// 		return fmt.Errorf("Could not unmarshal: %v\n", err)
+// 	}
+//
+// 	if content["type"] == "users" {
+// 		uc := internal.UserContainer{}
+// 		if err := uc.ImportYaml(*b); err != nil {
+// 			return fmt.Errorf("Panic: %v\n", err)
+// 		}
+// 		for _, u := range uc.UserContainer {
+// 			if err := u.ApplyToVault(c); err != nil {
+// 				return fmt.Errorf("Could not apply to Vault: %v\n", err)
+// 			}
+// 		}
+//
+// 	} else if content["type"] == "sshrole" {
+// 		rc := internal.SshRoleContainer{}
+// 		if err := pc.ImportYaml(*b); err != nil {
+// 			return fmt.Errorf("Panic: %v\n", err)
+// 		}
+// 		for _, r := range rc.SShRoleContainer {
+// 			if err := r.ApplyToVault(c); err != nil {
+// 				return fmt.Errorf("Could not apply to Vault: %v\n", err)
+// 			}
+// 		}
+// 	}
+// 	return nil
+// }
 
 func init() {
 	rootCmd.AddCommand(applyCmd)

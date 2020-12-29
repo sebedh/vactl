@@ -17,7 +17,7 @@ type SshRole struct {
 	Excluded_cidr_list []string `yaml:"excluded_cidr_list"`
 }
 
-func (s *SshRole) ApplyToVaul(c *Client, path string) error {
+func (s *SshRole) ApplyToVault(c *Client, path string) error {
 	logical := c.VaultClient.Logical()
 	path = path + "/roles/" + s.Name
 
