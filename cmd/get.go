@@ -129,15 +129,9 @@ func getUsers(c *internal.Client) error {
 		return fmt.Errorf("Could not get list of users: %v", err)
 	}
 
-	for _, u := range users {
-		if !Out {
-			fmt.Println(u)
-		}
-	}
-
 	// We want to print
 	if !Out {
-		fmt.Printf("Getting users at path: %v", path)
+		fmt.Printf("Getting users at path: %v\n", path)
 		for _, u := range users {
 			fmt.Println(u)
 		}
@@ -151,14 +145,14 @@ func getUsers(c *internal.Client) error {
 			userPath := path + "/" + u
 			data, err := logical.Read(userPath)
 			if err != nil {
-				return fmt.Errorf("Cannot output: %v", err)
+				return fmt.Errorf("Cannot output: %v\n", err)
 			}
 
 			// Get it into yaml form
 			content, err := yaml.Marshal(data.Data)
 
 			if err != nil {
-				return fmt.Errorf("Cannot Marshal into Yaml: %v", err)
+				return fmt.Errorf("Cannot Marshal into Yaml: %v\n", err)
 			}
 
 			// Prepare user
@@ -186,7 +180,7 @@ func getSshRoles(args []string, c *internal.Client) error {
 
 	roles, err := internal.GetList(logical, path)
 	if err != nil {
-		return fmt.Errorf("Error getting list: %v", err)
+		return fmt.Errorf("Error getting list: %v\n", err)
 	}
 
 	if !Out {
