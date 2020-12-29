@@ -5,9 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
+http://www.apache.org/licenses/LICENSE-2.0 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
@@ -22,7 +20,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 
 	"github.com/sebedh/vactl/internal"
@@ -43,7 +40,7 @@ var applyCmd = &cobra.Command{
 }
 
 func applyRun(cmd *cobra.Command, args []string) {
-	//var run_args string
+	var filesToApply []string
 	if len(FileApply) == 0 {
 		fmt.Println("error: must specify -f <dir|file>")
 		os.Exit(0)
@@ -54,75 +51,30 @@ func applyRun(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	dir, _ := filepath.Split(FileApply)
-
 	if f.IsDir() {
-		err = filepath.Walk(dir, func(p string, info os.FileInfo, errr error) error {
-			content := make(map[interface{}]interface{})
+		// Do stuff when we walk
+		err = filepath.Walk(FileApply, func(p string, info os.FileInfo, err error) error {
 			extension := strings.ToLower(filepath.Ext(p))
-
-			if extension == ".yml" || extension == ".yaml" {
-				bytes, err := ioutil.ReadFile(p)
-				if errr != nil {
-					return fmt.Errorf("Could not open file: %v", err)
-				}
-
-				if errr := yaml.Unmarshal(bytes, content); err != nil {
-					return fmt.Errorf("Could not unmarshal file: %v", errr)
-				}
-
-				yamlType := strings.ToLower(content["type"].(string))
-
-				if yamlType == "users" {
-					fmt.Println(content)
-				} else if yamlType == "sshrole" {
-					fmt.Println("sshrole")
-				}
-			} else if extension == ".hcl" {
-				policiesToCommit, dir, err := internal.GetLocalPolicies(FileApply)
-				if err != nil {
-					fmt.Printf("Couild not get local Policies: %v", err)
-				}
-				if err := applyToVault(policiesToCommit, dir); err != nil {
-					fmt.Printf("Could not apply policies: %v", err)
+			if !info.IsDir() {
+				if extension == ".yml" || extension == ".yaml" || extension == ".hcl" {
+					filesToApply = append(filesToApply, p)
 				}
 			}
 			return nil
 		})
-
 		if err != nil {
 			fmt.Println(err)
 		}
+	} else {
+		filesToApply = append(filesToApply, FileApply)
 	}
 
-	//extension := filepath.Ext(FileApply)
-
-	// if run_args == "policies" || run_args == "policy" {
-	// 	policiesToCommit, dir, err := internal.GetLocalPolicies(FileApply)
-
-	// 	if err != nil {
-	// 		fmt.Printf("Could not get local policies: %v", err)
-	// 	}
-
-	// 	if err := applyToVault(policiesToCommit, dir); err != nil {
-	// 		fmt.Println(err)
-	// 		os.Exit(1)
-	// 	}
-	// } else if run_args == "user" || run_args == "users" {
-	// 	usersToCommit, dir, err := internal.GetLocalUsers(FileApply)
-
-	// 	if err != nil {
-	// 		fmt.Printf("Could not get local users yaml: %v", err)
-	// 	}
-
-	// 	if err := applyToVault(usersToCommit, dir); err != nil {
-	// 		fmt.Println(err)
-	// 		os.Exit(1)
-	// 	}
-	// }
+	if err = applyToVault(filesToApply); err != nil {
+		fmt.Printf("Could not apply files: %v", err)
+	}
 }
 
-func applyToVault(o interface{}, dir string) error {
+func applyToVault(files []string) error {
 	vaultAddr := viper.GetString("vaultAddr")
 	vaultToken := viper.GetString("vaultToken")
 	if len(vaultAddr) <= 0 {
@@ -139,46 +91,82 @@ func applyToVault(o interface{}, dir string) error {
 		return err
 	}
 
-	// What should we apply?
-	t := reflect.TypeOf(o)
-
-	// It's a policy
-	if t == reflect.TypeOf([]internal.Policy{}) {
-		err := applyPolicy(c, o, dir)
+	for _, f := range files {
+		extension := strings.ToLower(filepath.Ext(f))
+		b, err := ioutil.ReadFile(f)
 		if err != nil {
-			return fmt.Errorf("Could not apply Policy: %v", err)
+			return fmt.Errorf("Could not read file: %v [%v]", f, err)
 		}
+
+		if extension == ".hcl" {
+			if err = applyPolicyPath(c, f); err != nil {
+				return err
+			}
+		} else {
+			if err = applyDataPath(c, &b, f); err != nil {
+				return err
+			}
+		}
+
 	}
 	return nil
 }
 
-func applyPolicy(c *internal.Client, o interface{}, dir string) error {
-	s := reflect.ValueOf(o)
+func applyPolicyPath(c *internal.Client, path string) error {
 	var reader io.Reader
 	var buf bytes.Buffer
+	_, fName := filepath.Split(path)
 
-	for i := 0; i < s.Len(); i++ {
-		policyName := s.Index(i).FieldByName("Name").String()
-		path := dir + policyName + ".hcl"
-		file, err := os.Open(path)
-		if err != nil {
-			return fmt.Errorf("Could not open/find policy to install: %v", err)
+	policyName := strings.TrimSuffix(fName, ".hcl")
+
+	file, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("Could not open/find policy to install: %v", err)
+	}
+
+	defer file.Close()
+
+	reader = file
+	if _, err := io.Copy(&buf, reader); err != nil {
+		return fmt.Errorf("Could not read policy in buffer: %v", err)
+	}
+
+	policyName = strings.TrimSpace(strings.ToLower(policyName))
+	fileBuf := buf.String()
+
+	if err := c.VaultClient.Sys().PutPolicy(policyName, fileBuf); err != nil {
+		fmt.Printf("Could not apply the policy to Vault: %v", err)
+	}
+
+	fmt.Printf("Applied Policy to Vault: %v, Location: %v\n", policyName, path)
+
+	return nil
+}
+
+func applyDataPath(c *internal.Client, b *[]byte, f string) error {
+	content := make(map[interface{}]interface{})
+	fmt.Printf("Should apply yaml: %v\n", f)
+
+	if err := yaml.Unmarshal(*b, content); err != nil {
+		return fmt.Errorf("Could not unmarshal: %v\n", err)
+	}
+
+	if content["type"] == "users" {
+		uc := internal.UserContainer{}
+		if err := uc.ImportYaml(*b); err != nil {
+			return fmt.Errorf("Panic: %v\n", err)
+		}
+		for _, u := range uc.UserContainer {
+			if err := u.ApplyToVault(c); err != nil {
+				return fmt.Errorf("Could not apply to Vault: %v\n", err)
+			}
 		}
 
-		defer file.Close()
-
-		reader = file
-		if _, err := io.Copy(&buf, reader); err != nil {
-			return fmt.Errorf("Could not reat policy in buffer: %v", err)
+	} else if content["type"] == "sshrole" {
+		pc := internal.SshRoleContainer{}
+		if err := pc.ImportYaml(*b); err != nil {
+			return fmt.Errorf("Panic: %v\n", err)
 		}
-
-		policyName = strings.TrimSpace(strings.ToLower(policyName))
-		fileBuf := buf.String()
-
-		if err := c.VaultClient.Sys().PutPolicy(policyName, fileBuf); err != nil {
-			fmt.Printf("Could not apply the policy to Vault: %v", err)
-		}
-		fmt.Printf("Applied Policy to Vault: %v", dir+policyName)
 	}
 	return nil
 }

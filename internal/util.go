@@ -2,9 +2,9 @@ package internal
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
+	"math/rand"
+	"strings"
+	"time"
 
 	"github.com/hashicorp/vault/api"
 	"gopkg.in/yaml.v2"
@@ -40,32 +40,43 @@ func ExportYaml(data interface{}) error {
 	return nil
 }
 
-func GetLocalFile(path string) (dir string, err error) {
-	f, err := os.Stat(path)
-	if err != nil {
-		return "", fmt.Errorf("Could not determine path as file or dir: %v", err)
+func GeneratePassword(length int) string {
+	var password strings.Builder
+	chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖ" +
+		"abcdefghijklmnopqrstuvwxyz" +
+		"0123456789" + "!-_,.")
+	rand.Seed(time.Now().Unix())
+
+	for i := 0; i < length; i++ {
+		password.WriteRune(chars[rand.Intn(len(chars))])
 	}
-
-	// dir, file
-	dir, _ = filepath.Split(path)
-	fmt.Println("test")
-
-	if f.IsDir() {
-		err = filepath.Walk(dir, func(p string, info os.FileInfo, errr error) error {
-			content := make(map[interface{}]interface{})
-			fileBytes, err := ioutil.ReadFile(p)
-			if err != nil {
-				return fmt.Errorf("Could not open file: %v", err)
-			}
-
-			if err = yaml.Unmarshal(fileBytes, content); err != nil {
-				return fmt.Errorf("Could not unmarshal, %v", err)
-			}
-
-			fmt.Println(content)
-			// Determine if user or ssh-role
-			return nil
-		})
-	}
-	return "", err
+	str := password.String()
+	return str
 }
+
+// func GetLocalFile(path string) (dir string, content map[interface{}]interface{}, err error) {
+// 	f, err := os.Stat(path)
+// 	if err != nil {
+// 		return "", nil, fmt.Errorf("Could not determine path as file or dir: %v", err)
+// 	}
+//
+// 	// dir, file
+// 	dir, _ = filepath.Split(path)
+//
+// 	if f.IsDir() {
+// 		err = filepath.Walk(dir, func(p string, info os.FileInfo, errr error) error {
+// 			fileBytes, err := ioutil.ReadFile(p)
+// 			if err != nil {
+// 				return fmt.Errorf("Could not open file: %v", err)
+// 			}
+//
+// 			if err = yaml.Unmarshal(fileBytes, content); err != nil {
+// 				return fmt.Errorf("Could not unmarshal, %v", err)
+// 			}
+//
+// 			// Determine if user or ssh-role
+// 			return nil
+// 		})
+// 	}
+// 	return
+// }

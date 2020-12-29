@@ -1,4 +1,5 @@
 ---
+# Method is path
 type: users
 users:
   - name: sebbe
