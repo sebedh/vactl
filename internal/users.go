@@ -54,10 +54,3 @@ func (uc *UserContainer) AppendUser(user User) []User {
 	uc.UserContainer = append(uc.UserContainer, user)
 	return uc.UserContainer
 }
-
-// func (uc *UserContainer) fromYaml(yml []byte) error {
-// 	if err := yaml.Unmarshal(yml, &uc); err != nil {
-// 		return fmt.Errorf("Could not unmarshal into object: %v\n", err)
-// 	}
-// 	return nil
-// }
