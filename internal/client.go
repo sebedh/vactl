@@ -107,3 +107,13 @@ func (c *Client) ApplyPolicyPath(path string) error {
 
 	return nil
 }
+
+func (c *Client) DeleteGivenPath(path string) error {
+	logical := c.VaultClient.Logical()
+
+	if _, err := logical.Delete(path); err != nil {
+		return fmt.Errorf("Could not delete given path: %v [%v]", path, err)
+	}
+
+	return nil
+}
