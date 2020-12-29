@@ -12,6 +12,14 @@ type User struct {
 	Method   string   `yaml:"method"`
 }
 
+func NewUser(name string, policies []string, method string) (user *User, err error) {
+	return &User{
+		Name:     name,
+		Policies: policies,
+		Method:   method,
+	}, nil
+}
+
 func (u *User) ApplyToVault(c *Client) error {
 	logical := c.VaultClient.Logical()
 	path := "/auth/" + u.Method + "/users/" + u.Name
@@ -35,12 +43,11 @@ type UserContainer struct {
 	UserContainer []User `yaml:"users"`
 }
 
-func NewUser(name string, policies []string, method string) (user *User, err error) {
-	return &User{
-		Name:     name,
-		Policies: policies,
-		Method:   method,
-	}, nil
+func NewUserContainerFromYaml(b []byte) (uc *UserContainer, err error) {
+	if err := yaml.Unmarshal(b, &uc); err != nil {
+		return nil, fmt.Errorf("Could not unmarshal into object: %v\n", err)
+	}
+	return
 }
 
 func (uc *UserContainer) AppendUser(user User) []User {
@@ -48,9 +55,9 @@ func (uc *UserContainer) AppendUser(user User) []User {
 	return uc.UserContainer
 }
 
-func (uc *UserContainer) ImportYaml(yml []byte) error {
-	if err := yaml.Unmarshal(yml, uc); err != nil {
-		return fmt.Errorf("Could not unmarshal into object: %v\n", err)
-	}
-	return nil
-}
+// func (uc *UserContainer) fromYaml(yml []byte) error {
+// 	if err := yaml.Unmarshal(yml, &uc); err != nil {
+// 		return fmt.Errorf("Could not unmarshal into object: %v\n", err)
+// 	}
+// 	return nil
+// }

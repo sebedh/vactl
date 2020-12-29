@@ -42,14 +42,21 @@ type SshRoleContainer struct {
 	SshRoleContainer []SshRole `yaml:"sshroles"`
 }
 
+func NewSshContainerFromYaml(b []byte) (r *SshRoleContainer, err error) {
+	if err := yaml.Unmarshal(b, &r); err != nil {
+		return nil, fmt.Errorf("Could not unmarshal into object: %v\n", err)
+	}
+	return
+}
+
 func (r *SshRoleContainer) AppendSshRole(role SshRole) []SshRole {
 	r.SshRoleContainer = append(r.SshRoleContainer, role)
 	return r.SshRoleContainer
 }
 
-func (r *SshRoleContainer) ImportYaml(yml []byte) error {
-	if err := yaml.Unmarshal(yml, r); err != nil {
-		return fmt.Errorf("Could not unmarshal into object: %v\n", err)
-	}
-	return nil
-}
+// func (r *SshRoleContainer) ImportYaml(yml []byte) error {
+// 	if err := yaml.Unmarshal(yml, r); err != nil {
+// 		return fmt.Errorf("Could not unmarshal into object: %v\n", err)
+// 	}
+// 	return nil
+// }

@@ -39,19 +39,21 @@ func NewVaultClient(vaultAddr string, vaultToken string) (*Client, error) {
 		err
 }
 
-func (c *Client) ApplyDataPath(b *[]byte, f string) error {
+func (c *Client) ApplyDataPath(b []byte, f string) error {
 	content := make(map[interface{}]interface{})
 	fmt.Printf("Should apply yaml: %v\n", f)
 
-	if err := yaml.Unmarshal(*b, content); err != nil {
+	if err := yaml.Unmarshal(b, content); err != nil {
 		return fmt.Errorf("Could not unmarshal: %v\n", err)
 	}
 
 	if content["type"] == "users" {
-		uc := UserContainer{}
-		if err := uc.ImportYaml(*b); err != nil {
-			return fmt.Errorf("Panic: %v\n", err)
+		uc, err := NewUserContainerFromYaml(b)
+
+		if err != nil {
+			return fmt.Errorf("Failed creating container: %v\n", err)
 		}
+
 		for _, u := range uc.UserContainer {
 			if err := u.ApplyToVault(c); err != nil {
 				return fmt.Errorf("Could not apply to Vault: %v\n", err)
@@ -59,11 +61,12 @@ func (c *Client) ApplyDataPath(b *[]byte, f string) error {
 		}
 
 	} else if content["type"] == "sshrole" {
-		rc := SshRoleContainer{}
-		path := content["path"].(string)
-		if err := rc.ImportYaml(*b); err != nil {
-			return fmt.Errorf("Panic: %v\n", err)
+		rc, err := NewSshContainerFromYaml(b)
+		if err != nil {
+			return fmt.Errorf("Failed creating container: %v\n", err)
 		}
+		path := content["path"].(string)
+
 		for _, r := range rc.SshRoleContainer {
 			if err := r.ApplyToVault(c, path); err != nil {
 				return fmt.Errorf("Could not apply to Vault: %v\n", err)

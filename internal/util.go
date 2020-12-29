@@ -53,30 +53,3 @@ func GeneratePassword(length int) string {
 	str := password.String()
 	return str
 }
-
-// func GetLocalFile(path string) (dir string, content map[interface{}]interface{}, err error) {
-// 	f, err := os.Stat(path)
-// 	if err != nil {
-// 		return "", nil, fmt.Errorf("Could not determine path as file or dir: %v", err)
-// 	}
-//
-// 	// dir, file
-// 	dir, _ = filepath.Split(path)
-//
-// 	if f.IsDir() {
-// 		err = filepath.Walk(dir, func(p string, info os.FileInfo, errr error) error {
-// 			fileBytes, err := ioutil.ReadFile(p)
-// 			if err != nil {
-// 				return fmt.Errorf("Could not open file: %v", err)
-// 			}
-//
-// 			if err = yaml.Unmarshal(fileBytes, content); err != nil {
-// 				return fmt.Errorf("Could not unmarshal, %v", err)
-// 			}
-//
-// 			// Determine if user or ssh-role
-// 			return nil
-// 		})
-// 	}
-// 	return
-// }

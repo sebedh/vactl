@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sebedh/vactl/internal"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -32,8 +31,6 @@ var rootCmd = &cobra.Command{
 	Short: "Vault control for operators",
 	Long:  `Used for vault CI/CD`,
 }
-
-var VaultClient *internal.Client
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
