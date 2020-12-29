@@ -52,7 +52,7 @@ A user, ssh-role or policy. Ssh-role is simply typed as ssh`,
 			}
 		} else if run_args == "user" {
 			user := strings.ToLower(args[1])
-			path := "/auth/" + MethodUser + "/" + user
+			path := "/auth/" + MethodUser + "/users/" + user
 			if err := client.DeleteGivenPath(path); err != nil {
 				fmt.Printf("Could not delete user: %v\n", err)
 			}
