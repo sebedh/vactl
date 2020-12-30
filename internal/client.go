@@ -36,7 +36,7 @@ func NewVaultClient(vaultAddr string, vaultToken string) (*Client, error) {
 			vaultAddr:   vaultAddr,
 			vaultToken:  vaultToken,
 			VaultClient: client},
-		err
+		nil
 }
 
 func (c *Client) ApplyDataPath(b []byte, f string) error {

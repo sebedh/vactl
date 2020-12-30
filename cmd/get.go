@@ -29,8 +29,9 @@ import (
 var getCmd = &cobra.Command{
 	Use:       "get",
 	Short:     "A brief description of your command",
-	Long:      `Get a Vault resource to stdout or yaml`,
+	Long:      `Get a Vault resource to stdout or yaml, arguments you can pass is policies, ssh-roles and users`,
 	ValidArgs: []string{"policies", "ssh-roles", "users"},
+	Args:      cobra.ExactArgs(1),
 	Run:       getRun,
 }
 
@@ -39,6 +40,7 @@ var MethodUser string
 var SshPath string
 
 func getRun(cmd *cobra.Command, args []string) {
+
 	var run_arg string
 	vaultAddr := viper.GetString("vaultAddr")
 	vaultToken := viper.GetString("vaultToken")
@@ -49,9 +51,7 @@ func getRun(cmd *cobra.Command, args []string) {
 		fmt.Printf("Could not create Vault client: %v", err)
 	}
 
-	if len(args) > 0 {
-		run_arg = strings.ToLower(args[0])
-	}
+	run_arg = strings.ToLower(args[0])
 
 	if run_arg == "policies" || run_arg == "policy" {
 		if err := getPolicies(args, c); err != nil {
