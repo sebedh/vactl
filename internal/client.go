@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
@@ -116,4 +117,36 @@ func (c *Client) DeleteGivenPath(path string) error {
 	}
 
 	return nil
+}
+
+func (c *Client) Write(path string, data map[string]string, ver string) error {
+	logical := c.VaultClient.Logical()
+	body := make(map[string]interface{})
+
+	// Decode the base64 values
+	for k, v := range data {
+		b, err := base64.StdEncoding.DecodeString(v)
+		if err != nil {
+			return err
+		}
+		body[k] = string(b)
+	}
+
+	var err error
+
+	if ver == "2" {
+		splitted := strings.Split(path, "/")
+		splitted = append(splitted, "")
+		copy(splitted[2:], splitted[1:])
+		splitted[1] = "data"
+		newPath := strings.Join(splitted, "/")
+
+		d := make(map[string]interface{})
+		d["data"] = body
+		_, err = logical.Write(newPath, d)
+	} else {
+		_, err = logical.Write(path, body)
+	}
+
+	return err
 }
