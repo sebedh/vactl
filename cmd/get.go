@@ -38,6 +38,7 @@ var getCmd = &cobra.Command{
 var Out bool
 var MethodUser string
 var SshPath string
+var SecretPath string
 
 func getRun(cmd *cobra.Command, args []string) {
 
@@ -122,16 +123,16 @@ func getPolicies(args []string, c *internal.Client) error {
 
 func getUsers(c *internal.Client) error {
 	logical := c.VaultClient.Logical()
-	path := "/auth/" + MethodUser + "/users"
+	basePath := "/auth/" + MethodUser + "/users"
 
-	users, err := internal.GetList(logical, path)
+	users, err := internal.GetList(logical, basePath)
 	if err != nil {
 		return fmt.Errorf("Could not get list of users: %v", err)
 	}
 
 	// We want to print
 	if !Out {
-		fmt.Printf("Getting users at path: %v\n", path)
+		fmt.Printf("Getting users at basePath: %v\n", basePath)
 		for _, u := range users {
 			fmt.Println(u)
 		}
@@ -142,7 +143,7 @@ func getUsers(c *internal.Client) error {
 		// Iterate through users
 		for _, u := range users {
 			// Read the user data from Vault
-			userPath := path + "/" + u
+			userPath := basePath + "/" + u
 			data, err := logical.Read(userPath)
 			if err != nil {
 				return fmt.Errorf("Cannot output: %v\n", err)
@@ -176,25 +177,25 @@ func getUsers(c *internal.Client) error {
 
 func getSshRoles(args []string, c *internal.Client) error {
 	logical := c.VaultClient.Logical()
-	path := "/" + SshPath + "/roles"
+	basePath := "/" + SshPath + "/roles"
 
-	roles, err := internal.GetList(logical, path)
+	roles, err := internal.GetList(logical, basePath)
 	if err != nil {
 		return fmt.Errorf("Error getting list: %v\n", err)
 	}
 
 	if !Out {
-		fmt.Printf("Getting ssh roles at path: %v\n", path)
+		fmt.Printf("Getting ssh roles at basePath: %v\n", basePath)
 		for _, r := range roles {
 			fmt.Println(r)
 		}
 	} else if Out {
 		rContainer := internal.SshRoleContainer{
 			Type: "sshrole",
-			Path: path,
+			Path: basePath,
 		}
 		for _, role := range roles {
-			rPath := path + "/" + role
+			rPath := basePath + "/" + role
 
 			data, err := logical.Read(rPath)
 
@@ -261,6 +262,7 @@ func init() {
 	// and all subcommands, e.g.:
 	// getCmd.PersistentFlags().String("foo", "", "A help for foo")
 	getCmd.PersistentFlags().BoolVarP(&Out, "out", "o", false, "output to hcl format in ./policies")
-	getCmd.PersistentFlags().StringVarP(&MethodUser, "method", "m", "userpass", "The user login method & it's logical path in Vault, default is userpass")
-	getCmd.PersistentFlags().StringVarP(&SshPath, "path", "p", "ssh", "Define a special path")
+	getCmd.PersistentFlags().StringVarP(&MethodUser, "method", "m", "userpass", "The user login method & it's logical basePath in Vault, default is userpass")
+	getCmd.PersistentFlags().StringVarP(&SshPath, "basePath", "p", "ssh", "Define a special basePath")
+	getCmd.PersistentFlags().StringVarP(&SecretPath, "secret-basePath", "s", "secret", "Define KV basePath")
 }
