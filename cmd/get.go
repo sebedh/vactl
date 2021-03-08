@@ -30,7 +30,7 @@ var getCmd = &cobra.Command{
 	Use:       "get",
 	Short:     "A brief description of your command",
 	Long:      `Get a Vault resource to stdout or yaml, arguments you can pass is policies, ssh-roles and users`,
-	ValidArgs: []string{"policies", "ssh-roles", "users"},
+	ValidArgs: []string{"policies", "ssh-roles", "users", "secrets"},
 	Args:      cobra.ExactArgs(1),
 	Run:       getRun,
 }
@@ -67,10 +67,20 @@ func getRun(cmd *cobra.Command, args []string) {
 	} else if run_arg == "ssh-roles" || run_arg == "ssh" {
 		if err := getSshRoles(args, c); err != nil {
 			fmt.Printf("Could not get ssh-roles: %v\n", err)
+			return
+		}
+	} else if run_arg == "secrets" || run_arg == "secret" {
+		if err := getSecrets(args, c); err != nil {
+			fmt.Printf("Could not get secrets: %v\n", err)
+			return
 		}
 	} else {
 		fmt.Println("Need to give, policies, ssh-roles or users as argument.")
 	}
+}
+
+func getSecrets(args []string, c *internal.Client) error {
+	return nil
 }
 
 func getPolicies(args []string, c *internal.Client) error {
@@ -265,4 +275,5 @@ func init() {
 	getCmd.PersistentFlags().StringVarP(&MethodUser, "method", "m", "userpass", "The user login method & it's logical basePath in Vault, default is userpass")
 	getCmd.PersistentFlags().StringVarP(&SshPath, "basePath", "p", "ssh", "Define a special basePath")
 	getCmd.PersistentFlags().StringVarP(&SecretPath, "secret-basePath", "s", "secret", "Define KV basePath")
+
 }
